@@ -5,7 +5,7 @@ import os
 import random
 import math
 from typing import List, Optional, Tuple, Type
-from plugins.boom_plugin import stock
+from . import stock
 from src.plugin_system import BasePlugin, register_plugin, ComponentInfo
 from src.plugin_system.apis import person_api
 from src.common.logger import get_logger
