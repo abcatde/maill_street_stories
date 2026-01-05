@@ -1,4 +1,4 @@
-# maimai_boom
+# maimai_boom 华尔街麦云
 为麦麦bot开发的模拟股票插件
 支持购买股票、出售股票、股票价格波动等功能
 拉取到plugins即装即用
