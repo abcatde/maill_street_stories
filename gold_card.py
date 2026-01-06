@@ -268,7 +268,6 @@ class GoldCardHelp(GoldCardBase,BaseCommand):
         command_name = "card_help"
         command_description = "卡牌帮助"
         command_pattern = r"^.开一局牌$"
-        command_pattern = r"^.金币卡牌$"
 
         async def execute(self) -> Tuple[bool, Optional[str], bool]:
             help_text = (
@@ -507,6 +506,7 @@ class DealCommand(GoldCardBase, BaseCommand):
                     host_n = await _get_nick(room["host"])
                     room["finished"] = True
                     room["result"] = f"超时 未加入，已退款 给 {host_n}"
+                    await self.send_text(f"超时 未加入，已退款 给 {host_n}")
             else:
                 if now - room.get("started_at", now) > 12 * 60:
                     rounds = room.get("rounds", [])
@@ -525,6 +525,7 @@ class DealCommand(GoldCardBase, BaseCommand):
                             BoomDataManager.add_gold(room["guest"], room.get("stake", 0))
                             room["finished"] = True
                             room["result"] = "超时平局，已退款"
+                            await self.send_text("超时平局，已退款")
                         else:
                             pot = room.get("pot", 0)
                             fee = max(1, int((pot * 0.01) + 0.9999))
@@ -532,6 +533,7 @@ class DealCommand(GoldCardBase, BaseCommand):
                             room["finished"] = True
                             winner_n = await _get_nick(winner)
                             room["result"] = f"超时结算，赢家 {winner_n} 获得 {pot-fee} (手续费 {fee})"
+                            await self.send_text(f"超时结算，赢家 {winner_n} 获得 {pot-fee} (手续费 {fee})")
 
     # _do_settle 已在 GoldCardBase 中实现，此处删除重复定义
 
