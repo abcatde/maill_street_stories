@@ -19,7 +19,13 @@ class BoomCommand(BaseCommand):
     command_description = "产生一次爆炸"
     command_pattern = r"^.金币炸弹 (?P<gold>\w+)$"
 
+    
+
     async def execute(self) -> Tuple[bool, Optional[str], bool]:
+        
+
+
+
         gold_str = self.matched_groups.get("gold")
         if not gold_str.isdigit() or int(gold_str) <= 0:
             return False, "金币数量错误！", False

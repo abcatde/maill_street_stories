@@ -10,8 +10,12 @@ from .commands import (
 from .gold_treasure import (
     GoldTreasureHelpCommand, BuryTreasureCommand, DigTreasureCommand, FastDigTreasureCommand, ShowLandCommand,
 )
+from .gold_card import (
+    CreateRoomCommand, JoinRoomCommand, DealCommand, SettleCommand, RaiseCommand,
+)
 from .scheduler import SimpleScheduler
 from . import stock
+from . import gold_card
 
 logger = get_logger("boom_plugin")
 
@@ -40,6 +44,11 @@ class BoomPlugin(BasePlugin):
             (DigTreasureCommand.get_command_info(), DigTreasureCommand),
             (FastDigTreasureCommand.get_command_info(), FastDigTreasureCommand),
             (ShowLandCommand.get_command_info(), ShowLandCommand),
+            (CreateRoomCommand.get_command_info(), CreateRoomCommand),
+            (JoinRoomCommand.get_command_info(), JoinRoomCommand),
+            (DealCommand.get_command_info(), DealCommand),
+            (RaiseCommand.get_command_info(), RaiseCommand),
+            (SettleCommand.get_command_info(), SettleCommand),
         ]
 
     def __init__(self, *args, **kwargs):
@@ -50,6 +59,14 @@ class BoomPlugin(BasePlugin):
                 stock.schedule_stock_price_updates(self.scheduler)
             except Exception:
                 logger.exception("调用 stock.schedule_stock_price_updates 时出错")
+            try:
+                # 注册金币牌局的超时检查任务（每6分钟）
+                try:
+                    gold_card.schedule_room_timeouts(self.scheduler)
+                except Exception:
+                    logger.exception("调用 gold_card.schedule_room_timeouts 时出错")
+            except Exception:
+                logger.exception("注册 gold_card 超时检查失败")
         except Exception:
             self.scheduler = None
             logger.exception("初始化 SimpleScheduler 失败")
