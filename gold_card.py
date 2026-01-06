@@ -473,8 +473,8 @@ class DealCommand(GoldCardBase, BaseCommand):
             host_contrib = stake + int(raises.get(str(host), 0))
             guest_contrib = stake + int(raises.get(str(guest), 0))
             lines = [f"第{len(room['rounds'])}轮发牌；当前彩池：{pot}（注：{host_n} 已下注 {host_contrib}，{guest_n} 已下注 {guest_contrib}）",
-                     f"玩家1 {host_n} 手牌： {cards_host}",
-                     f"玩家2 {guest_n} 手牌： {cards_guest}"]
+                     f"{host_n} 手牌： {cards_host}",
+                     f"{guest_n} 手牌： {cards_guest}"]
             if room["action_expected"] is None:
                 lines.append("等待任意一方操作（.结算 或 .加注）")
             else:
