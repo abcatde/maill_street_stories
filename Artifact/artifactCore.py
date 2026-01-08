@@ -2,7 +2,7 @@ from typing import Tuple
 from webbrowser import get
 from ..core import logCore
 from . import artifact_data
-from ..core import user_data
+from ..core import userCore
 
 '''
 抽取圣遗物系统
@@ -15,7 +15,7 @@ from ..core import user_data
 
 
 #新增圣遗物
-def add_new_artifact_to_user(userId: str, artifact: artifact_data.Artifact):
+def add_new_artifact_to_user(person_id: str, artifact: artifact_data.Artifact):
     """新增圣遗物到用户数据"""
     #检查仓库是否已满
     if artifact_data.is_artifact_storage_full():
@@ -28,41 +28,41 @@ def add_new_artifact_to_user(userId: str, artifact: artifact_data.Artifact):
                 lowest_level_artifact_id = art_id
         if lowest_level_artifact_id is not None:
             artifact_data.delete_artifact(lowest_level_artifact_id)
-            logCore.log_write(f'用户 {userId} 圣遗物仓库已满，自动分解圣遗物 {lowest_level_artifact_id} 以腾出空间')
+            logCore.log_write(f'用户 {person_id} 圣遗物仓库已满，自动分解圣遗物 {lowest_level_artifact_id} 以腾出空间')
         else:
             #没有未上锁圣遗物，分解当前圣遗物
             #当前圣遗物未保存，直接分解
             reinforcement_items = get_reinforcement_items_from_disassembly(artifact)
-            user_data.add_artifact_upgrade_items(userId, reinforcement_items)
-            logCore.log_write(f'用户 {userId} 圣遗物仓库已满且无未上锁圣遗物，自动分解新获得的圣遗物 {artifact.artifact_id}，获得 {reinforcement_items} 个强化道具')
+            userCore.update_artifact_upgrade_items(person_id, userCore.get_user_info(person_id).artifact_upgrade_items + reinforcement_items)
+            logCore.log_write(f'用户 {person_id} 圣遗物仓库已满且无未上锁圣遗物，自动分解新获得的圣遗物 {artifact.artifact_id}，获得 {reinforcement_items} 个强化道具')
             return
 
     artifact_data.add_new_artifact(artifact)
-    logCore.log_write(f'用户 {userId} 获得新圣遗物 {artifact.artifact_id} {artifact.name}')
+    logCore.log_write(f'用户 {person_id} 获得新圣遗物 {artifact.artifact_id} {artifact.name}')
 
 #分解圣遗物
-def disassemble_artifact(userId: str, artifact_id: int) -> Tuple[bool, str]:
+def disassemble_artifact(person_id: str, artifact_id: int) -> Tuple[bool, str]:
     """分解指定ID的圣遗物"""
     #计算分解获得的强化道具数量
     artifact = artifact_data.get_artifact_by_id(artifact_id)
     if not artifact:
-        logCore.log_write(f'用户 {userId} 分解圣遗物 {artifact_id} 失败，圣遗物不存在')
+        logCore.log_write(f'用户 {person_id} 分解圣遗物 {artifact_id} 失败，圣遗物不存在')
         return False, "圣遗物不存在"
     
     # 检查圣遗物是否被锁定
     if artifact.is_locked:
-        logCore.log_write(f'用户 {userId} 分解圣遗物 {artifact_id} 失败，圣遗物已锁定')
+        logCore.log_write(f'用户 {person_id} 分解圣遗物 {artifact_id} 失败，圣遗物已锁定')
         return False, "圣遗物已锁定，无法分解"
     
     reinforcement_items = get_reinforcement_items_from_disassembly(artifact)
     success = artifact_data.delete_artifact(artifact_id)
     if success:
         #成功分解后增加强化道具数量到用户数据
-        user_data.add_artifact_upgrade_items(userId, reinforcement_items)
-        logCore.log_write(f'用户 {userId} 分解圣遗物 {artifact_id} 成功，获得 {reinforcement_items} 个强化道具')
+        userCore.update_artifact_upgrade_items(person_id, userCore.get_user_info(person_id).artifact_upgrade_items + reinforcement_items)
+        logCore.log_write(f'用户 {person_id} 分解圣遗物 {artifact_id} 成功，获得 {reinforcement_items} 个强化道具')
         return True, f"成功分解圣遗物！\nID: {artifact_id} {artifact.name}\n获得: {reinforcement_items} 个强化道具"
     else:
-        logCore.log_write(f'用户 {userId} 分解圣遗物 {artifact_id} 失败')
+        logCore.log_write(f'用户 {person_id} 分解圣遗物 {artifact_id} 失败')
         return False, "分解圣遗物失败"
 
 #分解圣遗物后获得强化道具
@@ -111,7 +111,7 @@ def get_reinforcement_items_from_disassembly(artifact: artifact_data.Artifact) -
 描述由以下句子随机组合而成：
 ["这件圣遗物蕴含着强大的力量。","传说中，这件圣遗物曾属于一位伟大的英雄。","据说，这件圣遗物能够带来好运。","这件圣遗物散发出神秘的光芒。","拥有这件圣遗物的人将获得无尽的力量。","这件圣遗物是古代文明的遗产。","传说，这件圣遗物能够驱散黑暗。","这件圣遗物蕴含着自然的力量。","据说，这件圣遗物能够治愈伤痛。","这件圣遗物是勇气与荣耀的象征。"]
 '''
-def generate_random_artifact(userId: str) -> artifact_data.Artifact:
+def generate_random_artifact(person_id: str) -> artifact_data.Artifact:
     """生成一个随机圣遗物"""
     import random
     #名称词条
@@ -180,68 +180,73 @@ def generate_random_artifact(userId: str) -> artifact_data.Artifact:
         if artifact_id not in artifact_data.artifact_data:
             break
     artifact = artifact_data.Artifact(artifact_id=artifact_id, name=name, description=description, rarity=rarity)
-    add_new_artifact_to_user(userId, artifact)
+    add_new_artifact_to_user(person_id, artifact)
     return artifact
 
 '''
-抽奖，每次抽取消耗一定金币，有2%的概率获得圣遗物,8%的概率获得洗词条道具，20%的概率获得圣遗物强化道具，70%的概率获得随机的金币奖励
+抽奖，每次抽取消耗固定金币，有2%的概率获得圣遗物,8%的概率获得洗词条道具，20%的概率获得圣遗物强化道具，70%的概率获得随机的金币奖励
 '''
-def draw_artifact_lottery(userId: str, user_coins: int) -> Tuple[bool, str]:
+
+# 单次抽卡消耗
+ARTIFACT_LOTTERY_COST = 100
+
+
+def draw_artifact_lottery(person_id: str, user_coins: int) -> Tuple[bool, str]:
     """处理用户抽取圣遗物的逻辑"""
     import random
-    draw_cost = 100  #每次抽取消耗100金币
-    if user_coins < draw_cost:
+    if user_coins < ARTIFACT_LOTTERY_COST:
         return False, "金币不足，无法抽取圣遗物"
     
     #扣除金币
-    user_data.update_user_coins(userId, -draw_cost)
+    userCore.update_coins_to_user(person_id, -ARTIFACT_LOTTERY_COST)
     
     roll = random.randint(1, 100)
     if roll <= 5:
         #获得圣遗物
-        artifact = generate_random_artifact(userId)
+        artifact = generate_random_artifact(person_id)
+        userCore.save_user_data()
         return True, f"====================\n一件圣遗物被从历史的尘埃中找到！\nID: {artifact.artifact_id} 名称: {artifact.name}\n稀有度: {artifact.rarity}\n描述: {artifact.description}\n===================="
     elif roll <= 15:
         #获得洗词条道具
-        user_data.add_artifact_re_roll_items(userId, 1)
-        logCore.log_write(f'用户 {userId} 抽取获得1个熔火精华')
+        userCore.update_artifact_re_roll_items(person_id, userCore.get_user_info(person_id).artifact_re_roll_items + 1)
+        logCore.log_write(f'用户 {person_id} 抽取获得1个熔火精华')
         return True, "你获得了一个熔火精华！"
     elif roll <= 35:
         #获得强化道具
         reinforcement_items = random.randint(1, 3)
-        user_data.add_artifact_upgrade_items(userId, reinforcement_items)
-        logCore.log_write(f'用户 {userId} 抽取获得{reinforcement_items}个皎月精华')
+        userCore.update_artifact_upgrade_items(person_id, userCore.get_user_info(person_id).artifact_upgrade_items + reinforcement_items)
+        logCore.log_write(f'用户 {person_id} 抽取获得{reinforcement_items}个皎月精华')
         return True, f"你获得了 {reinforcement_items} 个皎月精华！"
     else:
         #获得随机金币奖励
         reward_coins = random.randint(1, 120)
-        user_data.update_user_coins(userId, reward_coins)
-        logCore.log_write(f'用户 {userId} 抽取获得{reward_coins}金币奖励')
+        userCore.update_coins_to_user(person_id, reward_coins)
+        logCore.log_write(f'用户 {person_id} 抽取获得{reward_coins}金币奖励')
         return True, f"你获得了 {reward_coins} 金币作为奖励！"
     
     #圣遗物上锁
-def lock_artifact(userId: str, artifact_id: int) -> bool:
+def lock_artifact(person_id: str, artifact_id: int) -> bool:
     """锁定指定ID的圣遗物"""
     success = artifact_data.lock_artifact(artifact_id)
     if success:
-        logCore.log_write(f'用户 {userId} 锁定圣遗物 {artifact_id} 成功')
+        logCore.log_write(f'用户 {person_id} 锁定圣遗物 {artifact_id} 成功')
     else:
-        logCore.log_write(f'用户 {userId} 锁定圣遗物 {artifact_id} 失败，圣遗物不存在')
+        logCore.log_write(f'用户 {person_id} 锁定圣遗物 {artifact_id} 失败，圣遗物不存在')
     return success
 
 #圣遗物解锁
-def unlock_artifact(userId: str, artifact_id: int) -> bool:
+def unlock_artifact(person_id: str, artifact_id: int) -> bool:
     """解锁指定ID的圣遗物"""
     success = artifact_data.unlock_artifact(artifact_id)
     if success:
-        logCore.log_write(f'用户 {userId} 解锁圣遗物 {artifact_id} 成功')
+        logCore.log_write(f'用户 {person_id} 解锁圣遗物 {artifact_id} 成功')
     else:
-        logCore.log_write(f'用户 {userId} 解锁圣遗物 {artifact_id} 失败，圣遗物不存在')
+        logCore.log_write(f'用户 {person_id} 解锁圣遗物 {artifact_id} 失败，圣遗物不存在')
     return success
 
-def get_artifact_storage_info(userId: str) -> str:
+def get_artifact_storage_info(person_id: str) -> str:
     """获取用户的圣遗物仓库信息"""
-    artifacts = artifact_data.get_all_artifacts()
+    artifacts = artifact_data.get_user_artifacts(person_id)
     if not artifacts:
         return "你的圣遗物仓库是空的，快去抽取吧！"
     
@@ -253,11 +258,11 @@ def get_artifact_storage_info(userId: str) -> str:
     return storage_text
 
 #圣遗物强化
-def enhance_artifact(userId: str, artifact_id: int, reinforcement_items: int) -> Tuple[bool, str]:
+def enhance_artifact(person_id: str, artifact_id: int, reinforcement_items: int) -> Tuple[bool, str]:
     """使用强化道具提升指定ID的圣遗物等级"""
     artifact = artifact_data.get_artifact_by_id(artifact_id)
     if not artifact:
-        logCore.log_write(f'用户 {userId} 强化圣遗物 {artifact_id} 失败，圣遗物不存在')
+        logCore.log_write(f'用户 {person_id} 强化圣遗物 {artifact_id} 失败，圣遗物不存在')
         return False, "圣遗物不存在"
     
     #每次消耗 2 * 当前等级 的强化道具与 100*当前等级 的金币提升1级
@@ -265,23 +270,56 @@ def enhance_artifact(userId: str, artifact_id: int, reinforcement_items: int) ->
     required_coins = 100 * artifact.level
     
     if reinforcement_items < required_items:
-        logCore.log_write(f'用户 {userId} 强化圣遗物 {artifact_id} 失败，强化道具不足')
-        return False, f"强化道具不足！需要 {required_items} 个强化道具，你只有 {reinforcement_items} 个"
+        logCore.log_write(f'用户 {person_id} 强化圣遗物 {artifact_id} 失败，皎月精华不足')
+        return False, f"皎月精华不足！需要 {required_items} 个皎月精华，你只有 {reinforcement_items} 个"
     
-    user = user_data.get_user_by_id(userId)
+    user = userCore.get_user_info(person_id)
     if not user or user.coins < required_coins:
-        logCore.log_write(f'用户 {userId} 强化圣遗物 {artifact_id} 失败，金币不足')
+        logCore.log_write(f'用户 {person_id} 强化圣遗物 {artifact_id} 失败，金币不足')
         return False, f"金币不足！需要 {required_coins} 金币，你只有 {user.coins if user else 0} 金币" 
     
     #提升等级
     artifact.level += 1
     
     #扣除强化道具与金币
-    user_data.add_artifact_upgrade_items(userId, -required_items)
-    user_data.update_user_coins(userId, -required_coins)
+    userCore.update_artifact_upgrade_items(person_id, reinforcement_items - required_items)
+    userCore.update_coins_to_user(person_id, -required_coins)
     
     #更新圣遗物数据
     artifact_data.update_artifact(artifact)
     
-    logCore.log_write(f'用户 {userId} 成功强化圣遗物 {artifact_id} 到 Lv.{artifact.level}')
+    logCore.log_write(f'用户 {person_id} 成功强化圣遗物 {artifact_id} 到 Lv.{artifact.level}')
     return True, f"成功强化圣遗物！\nID: {artifact_id} {artifact.name}\n当前等级: Lv.{artifact.level}\n消耗: {required_items}个强化道具 + {required_coins}金币"
+
+#获取指定ID的圣遗物信息
+def get_artifact_info(person_id: str, artifact_id: int) -> Tuple[bool, str]:
+    """获取指定ID的圣遗物信息"""
+    artifact = artifact_data.get_artifact_by_id(artifact_id)
+    if not artifact:
+        logCore.log_write(f'用户 {person_id} 获取圣遗物 {artifact_id} 信息失败，圣遗物不存在')
+        return False, "圣遗物不存在"
+    
+    lock_status = "已锁定🔒" if artifact.is_locked else "未锁定🔓"
+    info_text = (
+        f"====================\n"
+        f"圣遗物信息:\n"
+        f"ID: {artifact.artifact_id}\n"
+        f"名称: {artifact.name}\n"
+        f"稀有度: {artifact.rarity}\n"
+        f"等级: Lv.{artifact.level}\n"
+        f"状态: {lock_status}\n"
+        f"描述: {artifact.description}\n"
+        f"===================="
+    )
+    logCore.log_write(f'用户 {person_id} 获取圣遗物 {artifact_id} 信息成功')
+    return True, info_text
+
+#获取用户所有圣遗物列表
+def get_user_artifact_list(person_id: str) -> list:
+    """获取用户所有圣遗物列表"""
+    return artifact_data.get_user_artifacts(person_id)
+
+#保存用户圣遗物数据
+def save_user_artifact_data(person_id: str) -> None:
+    """保存用户圣遗物数据到文件"""
+    artifact_data.save_artifact_data(person_id)

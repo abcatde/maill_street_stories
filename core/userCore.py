@@ -9,46 +9,69 @@ from . import user_data
 from . import logCore
 from datetime import datetime
 
-def is_user_registered(user_id: str) -> bool:
+def is_user_registered(person_id: str) -> bool:
     """检查用户是否注册"""
-    return str(user_id) in user_data.user_data
+    return str(person_id) in user_data.user_data
 
-def register_user(user_id: str, user_name: str) -> None:
+def register_user(person_id: str, user_name: str) -> None:
     """注册新用户"""
-    user_data.register_user(user_id, user_name)
+    user_data.register_user(person_id, user_name)
 
-def get_user_info(user_id: str) -> user_data.User:
+def get_user_info(person_id: str) -> user_data.User:
     """获取用户信息"""
-    return user_data.get_user_by_id(user_id)
+    return user_data.get_user_by_id(person_id)
 
-def get_user_stock_list(user_id: str) -> dict:
+def get_user_stock_list(person_id: str) -> dict:
     """获取用户持有的股票列表"""
-    return user_data.get_user_stock_list(user_id)
+    return user_data.get_user_stock_list(person_id)
 
-def is_user_signed_in_today(user_id: str) -> bool:
+def is_user_signed_in_today(person_id: str) -> bool:
     """检查用户今天是否已经签到"""
-    user = get_user_info(user_id)
+    user = get_user_info(person_id)
     if not user or not user.last_sign_in:
         return False
     now = datetime.now()
     last_sign_date = datetime.fromisoformat(user.last_sign_in)
     return last_sign_date.date() == now.date()
 
-def update_coins_to_user(user_id: str, amount: int) -> None:
+def update_coins_to_user(person_id: str, amount: int) -> None:
     """更新用户金币"""
-    user_data.update_user_coins(user_id, amount)
+    user_data.update_user_coins(person_id, amount)
+
+#更新用户皎月精华
+def update_artifact_re_roll_items(person_id: str, amount: int) -> None:
+    """更新皎月精华道具"""
+    user_info = user_data.user_data.get(str(person_id))
+    if user_info is None:
+        return
+    # 确保字段存在后写入最新数值
+    if 'artifact_re_roll_items' not in user_info:
+        user_info['artifact_re_roll_items'] = 0
+    user_info['artifact_re_roll_items'] = amount
+
+#更新用户熔火精华
+def update_artifact_upgrade_items(person_id: str, amount: int) -> None:
+    """更新熔火精华道具"""
+    user_info = user_data.user_data.get(str(person_id))
+    if user_info is None:
+        return False
+    if 'artifact_upgrade_items' not in user_info:
+        user_info['artifact_upgrade_items'] = 0
+    user_info['artifact_upgrade_items'] = amount
+    return True
+
 
 #签到，增加连续签到天数个金币+10-100随机金币，如果是连续签到增加连续签到天数，否则重置连续签到天数
-def sign_in_user(user_id: str, reward_coins: int) -> tuple:
+def sign_in_user(person_id: str, reward_coins: int) -> tuple:
     """用户签到
     
     Returns:
         tuple: (是否成功, 是否首次签到, 连续签到天数, 总奖励金币, 当前金币余额)
     """
     
-    user = get_user_info(user_id)
+    user = get_user_info(person_id)
     if not user:
-        logCore.log_write(f'用户ID {user_id} 签到失败，用户不存在', logCore.LogLevel.ERROR)
+        logCore.log_write(f'用户ID {person_id} 签到失败，用户不存在', logCore.LogLevel.ERROR)
         return False, False, 0, 0, 0
     
     now = datetime.now()
@@ -68,12 +91,12 @@ def sign_in_user(user_id: str, reward_coins: int) -> tuple:
     total_reward = first_sign_bonus + reward_coins + new_sign_day
     
     # 更新用户数据
-    user_data.update_user_coins(user_id, total_reward)
-    user_data.update_user_sign_day(user_id, new_sign_day)
-    user_data.update_user_last_sign_in(user_id, now.isoformat())
+    user_data.update_user_coins(person_id, total_reward)
+    user_data.update_user_sign_day(person_id, new_sign_day)
+    user_data.update_user_last_sign_in(person_id, now.isoformat())
     
     # 获取更新后的金币余额
-    updated_user = get_user_info(user_id)
+    updated_user = get_user_info(person_id)
     final_coins = updated_user.coins if updated_user else 0
     
     log_msg = f'用户 {user.user_name} 签到成功！'

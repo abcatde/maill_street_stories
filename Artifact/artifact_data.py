@@ -8,9 +8,14 @@ artifact_data.py主要是对于圣遗物数据的定义和管理。
 '''
 
 import json
+import os
 from typing import List, Dict
 
 from ..core import logCore
+
+# 插件根目录和数据目录
+PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(PLUGIN_DIR, 'data')
 
 
 # 圣遗物数据结构
@@ -39,13 +44,24 @@ class Artifact:
 artifact_data: Dict[int, Artifact] = {}
 
 #加载圣遗物数据到内存,圣遗物文件被保存在./data/{userId}/artifact_data.json
-def load_artifact_data(userId = str,file_path = str):
-    str = f'./data/{userId}/artifact_data.json'
+def load_artifact_data(person_id: str):
     """加载圣遗物数据到内存"""
     global artifact_data
+    file_path = _artifact_file_path(person_id)
+
+    # 确保目录存在；若文件不存在则创建空文件
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    if not os.path.exists(file_path):
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump({}, f, ensure_ascii=False, indent=4)
+        artifact_data = {}
+        logCore.log_write(f'文件 {file_path} 不存在，已创建空的圣遗物数据文件')
+        return
+
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
+            artifact_data = {}
             for artifact_id, artifact_info in data.items():
                 artifact = Artifact(
                     artifact_id=int(artifact_id),
@@ -57,19 +73,20 @@ def load_artifact_data(userId = str,file_path = str):
                 artifact.yield_multiplier = artifact_info.get('yield_multiplier', 1.0)
                 artifact.rarity = artifact_info.get('rarity', "普通")
                 artifact.sub_stats = artifact_info.get('sub_stats', [])
-                artifact.locked = artifact_info.get('locked', False)
+                # 兼容旧字段 locked，新字段 is_locked
+                artifact.is_locked = artifact_info.get('is_locked', artifact_info.get('locked', False))
                 artifact_data[int(artifact_id)] = artifact
             logCore.log_write(f'圣遗物数据从 {file_path} 加载到内存')
-    except FileNotFoundError:
-        logCore.log_write(f'文件 {file_path} 不存在，未加载圣遗物数据')
     except json.JSONDecodeError:
         logCore.log_write(f'文件 {file_path} 解析错误，未加载圣遗物数据', logCore.LogLevel.ERROR)
 
 #保存圣遗物数据到文件
-def save_artifact_data(userId = str,file_path = str):
-    str = f'./data/{userId}/artifact_data.json'
+def save_artifact_data(person_id: str):
     """保存内存中的圣遗物数据到文件"""
     global artifact_data
+    file_path = _artifact_file_path(person_id)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
     data = {}
     for artifact_id, artifact in artifact_data.items():
         data[artifact_id] = {
@@ -80,11 +97,18 @@ def save_artifact_data(userId = str,file_path = str):
             'yield_multiplier': artifact.yield_multiplier,
             'rarity': artifact.rarity,
             'sub_stats': artifact.sub_stats,
-            'locked': artifact.locked
+            'is_locked': getattr(artifact, 'is_locked', False),
+            # 写入旧字段以兼容历史数据
+            'locked': getattr(artifact, 'is_locked', False)
         }
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
         logCore.log_write(f'圣遗物数据保存到 {file_path}')
+
+
+def _artifact_file_path(person_id: str) -> str:
+    """构造当前用户的圣遗物数据路径"""
+    return os.path.join(DATA_DIR, str(person_id), 'artifact_data.json')
 
 #新增圣遗物
 def add_new_artifact(artifact: Artifact):
@@ -102,14 +126,13 @@ def get_artifact_by_id(artifact_id: int) -> Artifact:
         return artifact
     return None
 
-#获取所有圣遗物列表
-def get_all_artifacts() -> List[Artifact]:
-    """获取所有artifact对象列表"""
+#获取用户的所有圣遗物列表
+def get_user_artifacts(person_id: str) -> List[Artifact]:
+    """获取用户的所有artifact列表"""
+    #根据person_id加载对应用户的artifact_data
+    load_artifact_data(person_id)
     global artifact_data
-    artifacts = []
-    for artifact_id, artifact_info in artifact_data.items():
-        artifacts.append(artifact_info)
-    return artifacts
+    return list(artifact_data.values())
 
 #更新圣遗物数据
 def update_artifact(artifact: Artifact):

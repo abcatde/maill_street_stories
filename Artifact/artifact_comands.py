@@ -79,14 +79,18 @@ class ArtifactDrawCommand(BaseCommand):
         except ValueError:
             return False, "抽取数量错误", False
         
-        # 根据数量调用artifactCore中的抽取函数
+        # 根据数量调用artifactCore中的抽取函数，如果金币不足则停止抽取
         result_texts = []
         for _ in range(quantity):
+            if user.coins < artifactCore.ARTIFACT_LOTTERY_COST:
+                break
             success, result_text = artifactCore.draw_artifact_lottery(person_id, user.coins)
             result_texts.append(result_text)
             if success:
                 # 重新获取用户数据以更新金币
                 user = userCore.get_user_info(person_id)
+                # 保存圣遗物数据到文件  
+                artifactCore.save_user_artifact_data(person_id)
         
         await self.send_text("\n".join(result_texts))
         return True, "抽取成功", True
@@ -175,6 +179,8 @@ class ArtifactDismantleCommand(BaseCommand):
         # 调用artifactCore中的函数分解圣遗物
         success, result_text = artifactCore.disassemble_artifact(person_id, artifact_id)
         await self.send_text(result_text)
+        #保存圣遗物数据到文件
+        artifactCore.save_user_artifact_data(person_id)
         return success, result_text, success
     
     # .af 锁定 <圣遗物ID> 命令锁定指定ID的圣遗物
@@ -334,6 +340,8 @@ class ArtifactEnhanceCommand(BaseCommand):
         # 调用artifactCore中的函数强化圣遗物
         success, result_text = artifactCore.enhance_artifact(person_id, artifact_id, reinforcement_items)
         await self.send_text(result_text)
+        #保存圣遗物数据到文件
+        artifactCore.save_user_artifact_data(person_id)
         return success, result_text, success
 
 # .展示 <圣遗物ID> 命令展示指定ID的圣遗物详细信息
@@ -380,6 +388,6 @@ class ArtifactShowCommand(BaseCommand):
             return False, "圣遗物ID错误", False
         
         # 调用artifactCore中的函数获取圣遗物详细信息
-        success, result_text = artifactCore.show_artifact_details(person_id, artifact_id)
+        success, result_text = artifactCore.get_artifact_info(person_id, artifact_id)
         await self.send_text(result_text)
         return success, result_text, success

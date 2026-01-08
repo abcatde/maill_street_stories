@@ -33,7 +33,8 @@ stock_list: 用户持有的股票列表
 
 
 class User:
-    def __init__(self, user_id, user_name ,coins=0, last_sign_in=None, sign_day= int):
+    def __init__(self, user_id, user_name, coins=0, last_sign_in=None, sign_day=0,
+                 artifact_re_roll_items=0, artifact_upgrade_items=0):
         self.user_id = user_id
         self.user_name = user_name
         self.coins = coins
@@ -43,9 +44,9 @@ class User:
         self.stock_list = {}
 
         # 用户拥有的“熔火精华”重铸道具数量
-        self.artifact_re_roll_items = 0
+        self.artifact_re_roll_items = artifact_re_roll_items
         # 用户拥有的"皎月精华"强化道具数量
-        self.artifact_upgrade_items = 0
+        self.artifact_upgrade_items = artifact_upgrade_items
 
 
 def load_user_data(file_path=None):
@@ -65,6 +66,10 @@ def load_user_data(file_path=None):
     global user_data
     with open(file_path, 'r', encoding='utf-8') as f:
         user_data = json.load(f)
+        # 兼容旧数据，补充圣遗物道具字段
+        for info in user_data.values():
+            info.setdefault('artifact_re_roll_items', 0)
+            info.setdefault('artifact_upgrade_items', 0)
         logCore.log_write(f'用户数据从 {file_path} 加载到内存，当前用户数: {len(user_data)}')
 
 @TaskScheduler.interval_task(minutes=30)  # 每30分钟执行一次
@@ -99,6 +104,8 @@ def register_user(user_id, user_name):
             'coins': 0,
             'last_sign_in': None,
             'sign_day': 0,
+            'artifact_re_roll_items': 0,
+            'artifact_upgrade_items': 0,
         }
         logCore.log_write(f'新用户注册: {user_name} (ID: {user_id})，等待首次签到')
         return True
@@ -157,7 +164,9 @@ def get_user_by_id(user_id):
             user_name=user_info.get('user_name'),
             coins=user_info.get('coins', 0),
             last_sign_in=user_info.get('last_sign_in'),
-            sign_day=user_info.get('sign_day', 0)
+            sign_day=user_info.get('sign_day', 0),
+            artifact_re_roll_items=user_info.get('artifact_re_roll_items', 0),
+            artifact_upgrade_items=user_info.get('artifact_upgrade_items', 0)
         )
     return None
 

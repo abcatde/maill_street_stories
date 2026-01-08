@@ -12,6 +12,11 @@ from ..core import logCore
 from ..core import timeCore
 from datetime import datetime
 
+# 历史记录长度限制
+HISTORY_LIMIT_6M = 10            # 与旧版行为一致，默认仅保留10条6分钟线
+HISTORY_LIMIT_HOUR = 48          # 小时线保留约两天
+HISTORY_LIMIT_DAY = 60           # 日线保留约两个月（按指令频率估算）
+
 # 获取插件目录的绝对路径
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PLUGIN_DIR, 'data')
@@ -21,7 +26,8 @@ STOCK_DATA_FILE = os.path.join(DATA_DIR, 'stock_data.json')
 class Stock:
     def __init__(self, stock_id, stock_name, stock_price, stock_type, stock_owner, stock_base_price,
                  price_fluctuation_positive=0.05, price_fluctuation_negative=0.05,
-                 price_fluctuation_reserve=0.00, price_fluctuation_max=0.20, price_history=None):
+                 price_fluctuation_reserve=0.00, price_fluctuation_max=0.20, price_history=None,
+                 price_history_hour=None, price_history_day=None, history_update_count=0):
         self.stock_id = stock_id
         self.stock_name = stock_name
         self.stock_price = stock_price
@@ -47,6 +53,10 @@ class Stock:
         
         # price_history: 价格历史记录，列表，存储最近的价格变动
         self.price_history = price_history if price_history is not None else []
+        # 额外的小时线、日线记录
+        self.price_history_hour = price_history_hour if price_history_hour is not None else []
+        self.price_history_day = price_history_day if price_history_day is not None else []
+        self.history_update_count = history_update_count
 
 
 
@@ -91,6 +101,16 @@ def load_stock_data(file_path=None):
         #加载stock数据到内存
         with open(file_path, 'r', encoding='utf-8') as f:
             stock_data = json.load(f)
+            # 为旧数据补充新字段
+            for stock_info in stock_data.values():
+                stock_info.setdefault('price_history', [])
+                stock_info.setdefault('price_history_hour', [])
+                stock_info.setdefault('price_history_day', [])
+                # 计数器用于生成小时线、日线，默认使用已有6分钟记录数
+                stock_info['history_update_count'] = stock_info.get(
+                    'history_update_count',
+                    len(stock_info.get('price_history', []))
+                )
             logCore.log_write(f'stock数据从 {file_path} 加载到内存，共 {len(stock_data)} 支股票')
     
 
@@ -131,7 +151,10 @@ def get_stock_by_id(stock_id: str) -> Stock:
             price_fluctuation_negative=stock_info.get('price_fluctuation_negative', 0.05),
             price_fluctuation_reserve=stock_info.get('price_fluctuation_reserve', 0.00),
             price_fluctuation_max=stock_info.get('price_fluctuation_max', 0.20),
-            price_history=stock_info.get('price_history', [])   
+            price_history=stock_info.get('price_history', []),
+            price_history_hour=stock_info.get('price_history_hour', []),
+            price_history_day=stock_info.get('price_history_day', []),
+            history_update_count=stock_info.get('history_update_count', 0)
         )
     return None
 
@@ -144,22 +167,13 @@ def get_stock_name_by_id(stock_id: str) -> str:
         return stock_info.get('stock_name', '未知股票')
     return '未知股票'
 
-# 更新stock价格，并储存上一条价格记录,储存格式为: *月**日*时*分 价格,最多存储10条记录
-def update_stock_price(stock_id: str, new_price: float,nowtime: datetime):
+# 更新stock价格，并记录对应的历史价格（6分钟线/小时线/日线）
+def update_stock_price(stock_id: str, new_price: float, nowtime: datetime):
     """更新stock价格"""
     global stock_data
     stock_info = stock_data.get(str(stock_id))
     if stock_info:
-        #储存上一条价格记录
-        timestamp = nowtime.strftime('%m月%d日%H时%M分')
-        price_record = f"{timestamp} {stock_info['stock_price']}$"
-        price_history = stock_info.get('price_history', [])
-        price_history.append(price_record)
-        #最多存储10条记录
-        if len(price_history) > 10:
-            price_history = price_history[-10:]
-        stock_info['price_history'] = price_history
-        
+        record_price_point(stock_id, new_price, nowtime)
         #更新价格
         stock_info['stock_price'] = new_price
         logCore.log_write(f'stock ID {stock_id} 价格更新: {new_price}$')
@@ -168,13 +182,15 @@ def update_stock_price(stock_id: str, new_price: float,nowtime: datetime):
 
 
 # 获取stock价格历史记录
-def get_stock_price_history(stock_id: str) -> list:
+def get_stock_price_history(stock_id: str, period: str = '6m') -> list:
     """获取stock价格历史记录"""
     global stock_data
     stock_info = stock_data.get(str(stock_id))
-    if stock_info:
-        return stock_info.get('price_history', [])
-    return []
+    if not stock_info:
+        return []
+
+    key = _period_to_key(period)
+    return stock_info.get(key, [])
 
 # 添加新stock
 def add_new_stock(stock_id: str, stock_name: str, stock_price: float,stock_type: str,stock_owner: str,stock_base_price: float):
@@ -194,7 +210,53 @@ def add_new_stock(stock_id: str, stock_name: str, stock_price: float,stock_type:
         'price_fluctuation_negative': 0.05,
         'price_fluctuation_reserve': 0.00,
         'price_fluctuation_max': 0.20,
-        'price_history': []
+        'price_history': [],
+        'price_history_hour': [],
+        'price_history_day': [],
+        'history_update_count': 0
     }
     logCore.log_write(f'新stock添加成功: {stock_id} {stock_name}')
     return True
+
+
+def record_price_point(stock_id: str, price: float, now: datetime) -> None:
+    """记录一条价格点并按规则生成小时线、日线"""
+    stock_info = stock_data.get(str(stock_id))
+    if not stock_info:
+        return
+
+    timestamp = now.strftime('%m月%d日%H:%M')
+    price_record = f"{timestamp} {int(price)}$"
+
+    _append_history(stock_info, 'price_history', price_record, HISTORY_LIMIT_6M)
+
+    update_count = stock_info.get('history_update_count', 0) + 1
+    stock_info['history_update_count'] = update_count
+
+    if update_count % 5 == 0:
+        _append_history(stock_info, 'price_history_hour', price_record, HISTORY_LIMIT_HOUR)
+
+    if update_count % (5 * 24) == 0:
+        _append_history(stock_info, 'price_history_day', price_record, HISTORY_LIMIT_DAY)
+
+
+def _append_history(stock_info: dict, key: str, record: str, limit: int) -> None:
+    """追加历史记录并限制长度"""
+    history = stock_info.get(key, [])
+    history.append(record)
+    if len(history) > limit:
+        history = history[-limit:]
+    stock_info[key] = history
+
+
+def _period_to_key(period: str) -> str:
+    """将周期参数转换为存储键"""
+    normalized = str(period).lower() if period is not None else '6m'
+
+    if normalized in ['6m', '6分钟', '6分钟线', '分钟', '默认', 'default', 'minute', 'min']:
+        return 'price_history'
+    if normalized in ['1h', 'h', '小时', '小时线', 'hour']:
+        return 'price_history_hour'
+    if normalized in ['1d', 'd', '日', '日线', 'day']:
+        return 'price_history_day'
+    return 'price_history'

@@ -54,15 +54,8 @@ def update_stock_prices():
             stock_info['price_fluctuation_reserve'] = stock.price_fluctuation_reserve
             
             # 记录价格历史
-            from datetime import datetime
-            timestamp = datetime.now().strftime('%m月%d日%H:%M')
-            price_record = f"{timestamp} {int(new_price)}$"
-            if 'price_history' not in stock_info:
-                stock_info['price_history'] = []
-            stock_info['price_history'].append(price_record)
-            # 只保留最近10条记录
-            if len(stock_info['price_history']) > 10:
-                stock_info['price_history'] = stock_info['price_history'][-10:]
+            now = datetime.now()
+            stock_data.record_price_point(stock_id, new_price, now)
             
             updated_count += 1
             logCore.log_write(f'股票 {stock_id} {stock.stock_name}: {int(old_price)}$ → {int(new_price)}$')

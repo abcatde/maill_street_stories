@@ -31,9 +31,9 @@ def get_all_stocks():
     return stocks
 
 #获取指定股票的历史价格记录
-def get_stock_price_history(stock_id: str):
+def get_stock_price_history(stock_id: str, period: str = '6m'):
     """获取指定股票的历史价格记录"""
-    return stock_data.get_stock_price_history(stock_id)
+    return stock_data.get_stock_price_history(stock_id, period)
 
 #获取指定股票的当前价格
 def get_stock_current_price(stock_id: str) -> Optional[int]:
