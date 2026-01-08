@@ -5,8 +5,8 @@ from src.plugin_system.base.config_types import ConfigField
 from .core import userCommands
 from .stock import stockCommands
 from .Artifact import artifact_comands
-from .MIniGame import TexasHoldemCommands
-from .MIniGame import gold_boom
+from .MiniGame import TexasHoldemCommands
+from .MiniGame import gold_boom
 
 @register_plugin
 class MaillStreetStoriesPlugin(BasePlugin):
