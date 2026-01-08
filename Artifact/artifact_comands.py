@@ -28,6 +28,7 @@ class ArtifactHelpCommand(BaseCommand):
             "4. .分解 <圣遗物ID> -分解指定ID的圣遗物\n"
             "5. .锁定/解锁 <圣遗物ID> -解锁指定ID的圣遗物\n"
             "6. .强化 <圣遗物ID> -使用强化道具提升指定ID的圣遗物等级\n"
+            "7. .展示 <圣遗物ID> -展示指定ID的圣遗物详细信息"
         )
         await self.send_text(help_text)
         return True, help_text, False
@@ -332,5 +333,53 @@ class ArtifactEnhanceCommand(BaseCommand):
         
         # 调用artifactCore中的函数强化圣遗物
         success, result_text = artifactCore.enhance_artifact(person_id, artifact_id, reinforcement_items)
+        await self.send_text(result_text)
+        return success, result_text, success
+
+# .展示 <圣遗物ID> 命令展示指定ID的圣遗物详细信息
+class ArtifactShowCommand(BaseCommand):
+    command_name = "Artifact_Show"
+    command_description = "展示指定ID的圣遗物详细信息"
+    command_pattern = r"^\.展示 (?P<artifact_id>\d+)$"
+
+    async def execute(self) -> Tuple[bool, Optional[str], bool]:
+        """处理展示指定ID的圣遗物详细信息命令"""
+        # 获取用户信息
+        if not self.message or not self.message.message_info or not self.message.message_info.user_info:
+            logCore.log_write("无法获取用户信息，查询失败")
+            return False, "无法获取用户信息", False
+        
+        # 获取平台和用户ID
+        platform = self.message.message_info.platform
+        user_id = str(self.message.message_info.user_info.user_id)
+        
+        # 获取 person_id
+        person_id = person_api.get_person_id(platform, user_id)
+        logCore.log_write(f"获取 person_id: {person_id} (平台: {platform}, 用户ID: {user_id})")
+        
+        # 检查用户是否注册
+        if not userCore.is_user_registered(person_id):
+            await self.send_text("你还没有注册，请先签到注册！")
+            return False, "用户未注册", False
+        
+        # 获取用户数据
+        user = userCore.get_user_info(person_id)
+        if not user:
+            logCore.log_write(f"获取用户数据失败: person_id {person_id}")
+            return False, "获取用户数据失败", False
+
+        artifact_id_str = self.matched_groups.get('artifact_id')
+        if not artifact_id_str:
+            return False, "命令格式错误", False
+        
+        try:
+            artifact_id = int(artifact_id_str)
+            if artifact_id <= 0:
+                raise ValueError
+        except ValueError:
+            return False, "圣遗物ID错误", False
+        
+        # 调用artifactCore中的函数获取圣遗物详细信息
+        success, result_text = artifactCore.show_artifact_details(person_id, artifact_id)
         await self.send_text(result_text)
         return success, result_text, success

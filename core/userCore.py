@@ -13,9 +13,9 @@ def is_user_registered(user_id: str) -> bool:
     """检查用户是否注册"""
     return str(user_id) in user_data.user_data
 
-def register_user(user_id: str, user_name: str) -> None:
+def register_user(user_id: str, user_name: str, user_qq: int) -> None:
     """注册新用户"""
-    user_data.register_user(user_id, user_name)
+    user_data.register_user(user_id, user_name, user_qq)
 
 def get_user_info(user_id: str) -> user_data.User:
     """获取用户信息"""
@@ -33,6 +33,10 @@ def is_user_signed_in_today(user_id: str) -> bool:
     now = datetime.now()
     last_sign_date = datetime.fromisoformat(user.last_sign_in)
     return last_sign_date.date() == now.date()
+
+def update_coins_to_user(user_id: str, amount: int) -> None:
+    """更新用户金币"""
+    user_data.update_user_coins(user_id, amount)
 
 #签到，增加连续签到天数个金币+10-100随机金币，如果是连续签到增加连续签到天数，否则重置连续签到天数
 def sign_in_user(user_id: str, reward_coins: int) -> tuple:

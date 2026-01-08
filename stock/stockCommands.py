@@ -59,10 +59,10 @@ class StockPriceHistoryCommand(BaseCommand):
             await self.send_text(f"未找到股票ID {stock_id} 的历史价格记录。")
             return False, "无历史价格记录", False
         # 构建历史价格信息文本
-        history_info = f"{stock_id}的历史价格记录:\n"
+        history_info = f"{stock_id}{stockCore.get_stock_name(stock_id)}的历史价格记录:\n"
         for record in price_history:
-            history_info += f"{record}"
-        
+            history_info += f"{record}\n"
+        history_info += f"当前最新价格: {stockCore.get_stock_current_price(stock_id)}$\n"
         await self.send_text(history_info)
         return True, "历史价格信息发送成功", True
     

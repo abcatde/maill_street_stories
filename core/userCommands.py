@@ -29,6 +29,7 @@ class SignInCommand(BaseCommand):
         # 获取平台和用户ID
         platform = self.message.message_info.platform
         user_id = str(self.message.message_info.user_info.user_id)
+        user_qq = self.message.message_info.user_info.user_qq
         
         # 获取 person_id
         person_id = person_api.get_person_id(platform, user_id)
@@ -39,7 +40,7 @@ class SignInCommand(BaseCommand):
         
         # 检查用户是否注册，未注册则先注册
         if not userCore.is_user_registered(person_id):
-            userCore.register_user(person_id, user_name)
+            userCore.register_user(person_id, user_name, user_qq)
             logCore.log_write(f"新用户 {user_name} 注册成功，准备进行首次签到")
         
         # 检查今天是否已经签到
@@ -63,7 +64,7 @@ class SignInCommand(BaseCommand):
                 message = f"@{user_name}\n🎉 欢迎！首次签到成功！\n" \
                          f"💰 新人礼包: 1000金币\n" \
                          f"🎲 随机奖励: {reward_coins}金币\n" \
-                         f"📅 签到奖励: {sign_day}金币\n" \
+                         f"📅 连续签到奖励: {sign_day}金币\n" \
                          f"💎 当前余额: {final_coins}金币"
             else:
                 message = f"@{user_name}\n" \
@@ -97,7 +98,7 @@ class UserInfoCommand(BaseCommand):
         # 获取 person_id
         person_id = person_api.get_person_id(platform, user_id)
         logCore.log_write(f"获取 person_id: {person_id} (平台: {platform}, 用户ID: {user_id})")
-        
+
         # 检查用户是否注册
         if not userCore.is_user_registered(person_id):
             await self.send_text("你还没有注册，请先签到注册！")
@@ -111,16 +112,22 @@ class UserInfoCommand(BaseCommand):
         
         #获取用户持有的股票信息
         stock_list = userCore.get_user_stock_list(person_id)
-        if stock_list:
+        if not stock_list:
+            stock_info_text = "你当前没有持有任何股票。\n"
+        else:
             stock_info_text = "当前持有股票:\n"
             for stock_entry in stock_list:
                 stock_info_text += f"{stock_entry['stock_type']} {stock_entry['stock_id']}{stock_entry['stock_name']} {stock_entry['quantity']} 股\n"
-
         # 构建用户信息文本
         info_text = f"@{user.user_name}\n"
         if stock_list:
             info_text += stock_info_text
         info_text += f"金币: {user.coins}"
+
+        #查询用户拥有的圣遗物道具数量
+        info_text += f"\n熔火精华: {user.artifact_re_roll_items} 个"
+        info_text += f"\n皎月精华: {user.artifact_upgrade_items} 个"
+
         await self.send_text(info_text)
         return True, "查询成功", True
     
@@ -141,7 +148,7 @@ class HelpCommand(BaseCommand):
             "6. .出售 <股票代码> <数量>\n" 
             "7. .历史价格 <股票代码>\n"
             "8. .af - 圣遗物帮助\n" 
-            "9. .地产 - 地产帮助" 
+            "9. .德州扑克 - 德州扑克帮助" 
             
         )
         await self.send_text(help_text)

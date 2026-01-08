@@ -28,14 +28,14 @@ user_id: 用户ID
 coins: 用户金币数量
 last_sign_in: 上次签到时间
 sign_day: 连续签到天数
-data_url: 用户复杂数据文件路径
 stock_list: 用户持有的股票列表
 '''
 
 
 class User:
-    def __init__(self, user_id, user_name ,coins=0, last_sign_in=None, sign_day= int):
+    def __init__(self, user_id,user_qq, user_name ,coins=0, last_sign_in=None, sign_day= int):
         self.user_id = user_id
+        self.qq_number = user_qq
         self.user_name = user_name
         self.coins = coins
         self.last_sign_in = last_sign_in
@@ -43,9 +43,9 @@ class User:
         # 用户持有的股票列表，格式为{stock_id: 数量}
         self.stock_list = {}
 
-        # 用户拥有的圣遗物洗词条道具数量
+        # 用户拥有的“熔火精华”重铸道具数量
         self.artifact_re_roll_items = 0
-        # 用户拥有的圣遗物升级道具数量
+        # 用户拥有的"皎月精华"强化道具数量
         self.artifact_upgrade_items = 0
 
 
@@ -90,12 +90,13 @@ def _save_user_data_sync(file_path=None):
         json.dump(user_data, f, ensure_ascii=False, indent=4)
         logCore.log_write(f'用户数据保存到 {file_path}，当前用户数: {len(user_data)}')
 
-def register_user(user_id, user_name):
+def register_user(user_id, user_name, user_qq):
     """注册新用户（不设置初始金币和签到数据，由首次签到完成）"""
     global user_data
     if str(user_id) not in user_data:
         user_data[str(user_id)] = {
             'user_name': user_name,
+            'qq_number': user_qq,
             'coins': 0,
             'last_sign_in': None,
             'sign_day': 0,
@@ -281,3 +282,12 @@ def get_artifact_upgrade_items(user_id):
     if user_info:
         return user_info.get('artifact_upgrade_items', 0)
     return 0
+
+# 根据id获取用户qq号
+def get_user_qq_by_id(user_id):
+    """通过用户ID获取用户QQ号"""
+    global user_data
+    user_info = user_data.get(str(user_id))
+    if user_info:
+        return user_info.get('qq_number')
+    return None

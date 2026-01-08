@@ -7,6 +7,7 @@ tockCore模块负责管理股票的核心逻辑，包括股票的买卖、价格
 
 '''
 
+from typing import Optional
 from . import stock_data
 from . import stockPriceControl
 from ..core import user_data
@@ -33,6 +34,22 @@ def get_all_stocks():
 def get_stock_price_history(stock_id: str):
     """获取指定股票的历史价格记录"""
     return stock_data.get_stock_price_history(stock_id)
+
+#获取指定股票的当前价格
+def get_stock_current_price(stock_id: str) -> Optional[int]:
+    """获取指定股票的当前价格"""
+    stock = stock_data.get_stock_by_id(stock_id)
+    if stock:
+        return stock.stock_price
+    return None
+
+#获取指定股票的名称
+def get_stock_name(stock_id: str) -> Optional[str]:
+    """获取指定股票的名称"""
+    stock = stock_data.get_stock_by_id(stock_id)
+    if stock:
+        return stock.stock_name
+    return None
     
 #购买股票
 def buy_stock(user_id: str, stock_id: str, quantity: int) -> bool:
