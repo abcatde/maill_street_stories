@@ -24,7 +24,7 @@ user_data = {}
 
 '''
 user结构体:
-user_id: 用户ID
+person_id: 用户ID
 coins: 用户金币数量
 last_sign_in: 上次签到时间
 sign_day: 连续签到天数
@@ -33,9 +33,9 @@ stock_list: 用户持有的股票列表
 
 
 class User:
-    def __init__(self, user_id, user_name, coins=0, last_sign_in=None, sign_day=0,
+    def __init__(self, person_id, user_name, coins=0, last_sign_in=None, sign_day=0,
                  artifact_re_roll_items=0, artifact_upgrade_items=0):
-        self.user_id = user_id
+        self.person_id = person_id
         self.user_name = user_name
         self.coins = coins
         self.last_sign_in = last_sign_in
@@ -94,73 +94,73 @@ def _save_user_data_sync(file_path=None):
         json.dump(user_data, f, ensure_ascii=False, indent=4)
         logCore.log_write(f'用户数据保存到 {file_path}，当前用户数: {len(user_data)}')
 
-def register_user(user_id, user_name):
+def register_user(person_id, user_name):
     """注册新用户（不设置初始金币和签到数据，由首次签到完成）"""
     global user_data
-    if str(user_id) not in user_data:
-        user_data[str(user_id)] = {
+    if str(person_id) not in user_data:
+        user_data[str(person_id)] = {
             'user_name': user_name,
-            'user_id': user_id,
+            'person_id': person_id,
             'coins': 0,
             'last_sign_in': None,
             'sign_day': 0,
             'artifact_re_roll_items': 0,
             'artifact_upgrade_items': 0,
         }
-        logCore.log_write(f'新用户注册: {user_name} (ID: {user_id})，等待首次签到')
+        logCore.log_write(f'新用户注册: {user_name} (ID: {person_id})，等待首次签到')
         return True
     else:
-        logCore.log_write(f'用户已存在: {user_name} (ID: {user_id})')
+        logCore.log_write(f'用户已存在: {user_name} (ID: {person_id})')
         return False
 
-def update_user_coins(user_id, amount):
+def update_user_coins(person_id, amount):
     """更新用户金币数量"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         user_info['coins'] += amount
-        logCore.log_write(f'用户ID {user_id} 金币更新: {amount}, 新余额: {user_info["coins"]}')
+        logCore.log_write(f'用户ID {person_id} 金币更新: {amount}, 新余额: {user_info["coins"]}')
         return True, user_info['coins']
     return False
 
-def update_user_sign_day(user_id, sign_day):
+def update_user_sign_day(person_id, sign_day):
     """更新用户连续签到天数"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         user_info['sign_day'] = sign_day
-        logCore.log_write(f'用户ID {user_id} 连续签到天数更新: {sign_day}')
+        logCore.log_write(f'用户ID {person_id} 连续签到天数更新: {sign_day}')
         return True
     return False
 
-def update_user_last_sign_in(user_id, last_sign_in):
+def update_user_last_sign_in(person_id, last_sign_in):
     """更新用户最后签到时间"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         user_info['last_sign_in'] = last_sign_in
-        logCore.log_write(f'用户ID {user_id} 最后签到时间更新: {last_sign_in}')
+        logCore.log_write(f'用户ID {person_id} 最后签到时间更新: {last_sign_in}')
         return True
     return False
 
-def get_user_name_by_id(user_id):
+def get_user_name_by_id(person_id):
     """通过用户ID获取用户名"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         return user_info.get('user_name')
     return None
 
-def get_user_by_id(user_id):
+def get_user_by_id(person_id):
     """通过用户ID获取用户数据"""
     global user_data
-    logCore.log_write(f'[DEBUG] get_user_by_id: 查询 user_id={user_id}, type={type(user_id)}', logCore.LogLevel.DEBUG)
+    logCore.log_write(f'[DEBUG] get_user_by_id: 查询 person_id={person_id}, type={type(person_id)}', logCore.LogLevel.DEBUG)
     logCore.log_write(f'[DEBUG] get_user_by_id: user_data keys={list(user_data.keys())}', logCore.LogLevel.DEBUG)
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     logCore.log_write(f'[DEBUG] get_user_by_id: user_info={user_info}', logCore.LogLevel.DEBUG)
     if user_info:
         return User(
-            user_id=user_id,
+            person_id=person_id,
             user_name=user_info.get('user_name'),
             coins=user_info.get('coins', 0),
             last_sign_in=user_info.get('last_sign_in'),
@@ -170,12 +170,12 @@ def get_user_by_id(user_id):
         )
     return None
 
-def get_user_stock_list(user_id):
+def get_user_stock_list(person_id):
     """获取用户持有的股票列表"""
     global user_data
-    logCore.log_write(f'get_user_stock_list: 查询 user_id={user_id}', logCore.LogLevel.DEBUG)
+    logCore.log_write(f'get_user_stock_list: 查询 person_id={person_id}', logCore.LogLevel.DEBUG)
     logCore.log_write(f'get_user_stock_list: user_data中的所有key: {list(user_data.keys())}', logCore.LogLevel.DEBUG)
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         stock_list = user_info.get('stock_list', {})
         # 将字典格式转换为列表格式，方便显示
@@ -192,19 +192,19 @@ def get_user_stock_list(user_id):
         return []
     return []
 
-def get_user_stock(user_id, stock_id):
+def get_user_stock(person_id, stock_id):
     """获取用户持有的指定股票信息"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         stock_list = user_info.get('stock_list', {})
         return stock_list.get(str(stock_id))
     return None
 
-def add_user_stock(user_id, stock_id, stock_name, quantity, stock_type='官方'):
+def add_user_stock(person_id, stock_id, stock_name, quantity, stock_type='官方'):
     """增加用户持有的股票数量"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         if 'stock_list' not in user_info:
             user_info['stock_list'] = {}
@@ -220,14 +220,14 @@ def add_user_stock(user_id, stock_id, stock_name, quantity, stock_type='官方')
                 'stock_type': stock_type,
                 'quantity': quantity
             }
-        logCore.log_write(f'用户ID {user_id} 增加股票 {stock_id}{stock_name} {quantity}股')
+        logCore.log_write(f'用户ID {person_id} 增加股票 {stock_id}{stock_name} {quantity}股')
         return True
     return False
 
-def remove_user_stock(user_id, stock_id, quantity):
+def remove_user_stock(person_id, stock_id, quantity):
     """减少用户持有的股票数量"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         if 'stock_list' not in user_info:
             user_info['stock_list'] = {}
@@ -248,46 +248,46 @@ def remove_user_stock(user_id, stock_id, quantity):
         if user_info['stock_list'][stock_id_str]['quantity'] <= 0:
             del user_info['stock_list'][stock_id_str]
         
-        logCore.log_write(f'用户ID {user_id} 减少股票 {stock_id} {quantity}股')
+        logCore.log_write(f'用户ID {person_id} 减少股票 {stock_id} {quantity}股')
         return True
     return False
 
-def add_artifact_re_roll_items(user_id, amount):
+def add_artifact_re_roll_items(person_id, amount):
     """更新用户洗词条道具数量"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         if 'artifact_re_roll_items' not in user_info:
             user_info['artifact_re_roll_items'] = 0
         user_info['artifact_re_roll_items'] += amount
-        logCore.log_write(f'用户ID {user_id} 洗词条道具数量更新: {amount}, 新数量: {user_info["artifact_re_roll_items"]}')
+        logCore.log_write(f'用户ID {person_id} 洗词条道具数量更新: {amount}, 新数量: {user_info["artifact_re_roll_items"]}')
         return True
     return False
 
-def add_artifact_upgrade_items(user_id, amount):
+def add_artifact_upgrade_items(person_id, amount):
     """更新用户升级道具数量"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         if 'artifact_upgrade_items' not in user_info:
             user_info['artifact_upgrade_items'] = 0
         user_info['artifact_upgrade_items'] += amount
-        logCore.log_write(f'用户ID {user_id} 升级道具数量更新: {amount}, 新数量: {user_info["artifact_upgrade_items"]}')
+        logCore.log_write(f'用户ID {person_id} 升级道具数量更新: {amount}, 新数量: {user_info["artifact_upgrade_items"]}')
         return True
     return False
 
-def get_artifact_re_roll_items(user_id):
+def get_artifact_re_roll_items(person_id):
     """获取用户洗词条道具数量"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         return user_info.get('artifact_re_roll_items', 0)
     return 0
 
-def get_artifact_upgrade_items(user_id):
+def get_artifact_upgrade_items(person_id):
     """获取用户升级道具数量"""
     global user_data
-    user_info = user_data.get(str(user_id))
+    user_info = user_data.get(str(person_id))
     if user_info:
         return user_info.get('artifact_upgrade_items', 0)
     return 0
