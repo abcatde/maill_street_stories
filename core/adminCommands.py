@@ -16,6 +16,7 @@ class RedeemCode:
         self.code = code            # 兑换码字符串
         self.amount = amount        # 兑换码对应的金额
         self.uses = uses            # 兑换码剩余使用次数
+        self.used_users = set()     # 已使用该兑换码的用户ID集合
 
 #兑换码列表全局变量
 redeem_code_list = {}
@@ -158,11 +159,18 @@ class RedeemCodeCommand(BaseCommand):
             await self.send_text("该兑换码已被使用完。")
             return False, "兑换码使用完", False
         
+        #每个用户只能使用一次兑换码
+        if person_id in redeem_code.used_users:
+            await self.send_text("你已经使用过该兑换码，不能重复使用。")
+            return False, "用户重复使用兑换码", False
+        
+        
         #给用户增加金币
         userCore.update_coins_to_user(person_id, redeem_code.amount)
         
         #减少兑换码使用次数
         redeem_code.uses -= 1
+        redeem_code.used_users.add(person_id)
         await self.send_text(f"@{userCore.get_user_info(person_id).user_name} 兑换成功！你获得了 {redeem_code.amount} 金币。\n当前拥有{userCore.get_user_info(person_id).coins}金币")
         logCore.log_write(f"用户ID {person_id} 使用兑换码 {code} 成功，获得 {redeem_code.amount} 金币，剩余使用次数：{redeem_code.uses}")
         return True, "兑换成功", False
