@@ -68,6 +68,7 @@ class MaillStreetStoriesPlugin(BasePlugin):
             (TexasHoldemCommands.CallCommand.get_command_info(), TexasHoldemCommands.CallCommand),
             (TexasHoldemCommands.CheckCommand.get_command_info(), TexasHoldemCommands.CheckCommand),
             (TexasHoldemCommands.ViewRoomCommand.get_command_info(), TexasHoldemCommands.ViewRoomCommand),
+            (TexasHoldemCommands.AllInCommand.get_command_info(), TexasHoldemCommands.AllInCommand),
             (gold_boom.GoldBoomCommand.get_command_info(), gold_boom.GoldBoomCommand),
 
         ]

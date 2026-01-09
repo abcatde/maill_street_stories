@@ -14,8 +14,12 @@ from datetime import datetime
 
 # 历史记录长度限制
 HISTORY_LIMIT_6M = 10            # 与旧版行为一致，默认仅保留10条6分钟线
-HISTORY_LIMIT_HOUR = 48          # 小时线保留约两天
-HISTORY_LIMIT_DAY = 60           # 日线保留约两个月（按指令频率估算）
+HISTORY_LIMIT_HOUR = 10          # 小时线最多保留10条
+HISTORY_LIMIT_DAY = 10           # 日线最多保留10条
+
+# 6分钟一次刷新：每小时10条，每天240条
+HISTORY_POINTS_PER_HOUR = 10
+HISTORY_POINTS_PER_DAY = HISTORY_POINTS_PER_HOUR * 24
 
 # 获取插件目录的绝对路径
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -233,10 +237,10 @@ def record_price_point(stock_id: str, price: float, now: datetime) -> None:
     update_count = stock_info.get('history_update_count', 0) + 1
     stock_info['history_update_count'] = update_count
 
-    if update_count % 5 == 0:
+    if update_count % HISTORY_POINTS_PER_HOUR == 0:
         _append_history(stock_info, 'price_history_hour', price_record, HISTORY_LIMIT_HOUR)
 
-    if update_count % (5 * 24) == 0:
+    if update_count % HISTORY_POINTS_PER_DAY == 0:
         _append_history(stock_info, 'price_history_day', price_record, HISTORY_LIMIT_DAY)
 
 

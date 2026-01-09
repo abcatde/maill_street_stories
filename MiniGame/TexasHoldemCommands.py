@@ -44,7 +44,7 @@ class TexasHoldemHelpCommand(BaseCommand):
             ".创建房间 [倍率] - (仅私聊有效)创建一个新的德州扑克房间，可选倍率参数（默认为1）\n"
             ".加入房间 <房间ID> - (仅私聊有效)加入指定ID的德州扑克房间\n"
             ".离开房间 - 离开当前所在的德州扑克房间\n"
-            ".开局 - 手动开始游戏（当房间人数足够时）\n"
+            ".开局 - 手动开始游戏\n"
             ".下注 <金额> - 在当前轮次下注指定金额筹码\n"
             ".跟注 - 跟随当前最高下注金额\n"
             ".加注 <金额> - 在当前最高下注基础上加注指定金额筹码\n"
@@ -165,7 +165,7 @@ class JoinRoomCommand(BaseCommand):
             # 返还金币
             userCore.update_coins_to_user(person_id, chips_needed)
             return False, f"房间 {room_id} 已满", False
-        await self.send_text(f"--------------------\n{username} 成功加入房间 {room_id}！\n当前房间人数：{len(room.players)}\n--------------------")
+        await self.send_text(f"--------------------\n{username} 成功加入房间 {room_id}！\n当前房间人数：{len(room.players)}\n已自动花费{chips_needed*rate} 金币筹码 {chips_needed}\n--------------------")
         # 自动开局：仅当房间人数达到最大人数时自动开局（最大人数为room.max_players）
         if hasattr(room, 'max_players') and len(room.players) >= room.max_players and room.round_stage == "waiting":
             TexasHoldemCore.start_new_hand(room)
@@ -318,10 +318,11 @@ class NextRoundCommand(BaseCommand):
         located = TexasHoldemCore.find_player_room(rooms, user_id)
         if located:
             _, room, _ = located
+            pot_snapshot = room.pot
             # 单人存活直接获胜
             winner = TexasHoldemCore._check_single_player_win(room)
             if winner:
-                await self.send_text(f"{_mention_next(room)} 房间{room.room_id} 只剩 {winner.username}，底池 {room.pot} 筹码直接获胜！")
+                await self.send_text(f"{_mention_next(room)} 房间{room.room_id} 只剩 {winner.username}，底池 {pot_snapshot} 筹码直接获胜！")
                 return True, "单人存活自动结算", True
 
             if not TexasHoldemCore._is_betting_round_settled(room):
@@ -334,17 +335,16 @@ class NextRoundCommand(BaseCommand):
                 return False, "无法推进", False
 
             if room.round_stage == "showdown":
-                if result and isinstance(result, tuple) and len(result) == 3:
-                    winner, best_hand, hand_name = result
+                if result and isinstance(result, tuple) and len(result) >= 3:
+                    winner, best_hand, hand_name = result[:3]
+                    pot_won = result[3] if len(result) >= 4 else pot_snapshot
                     hand_str = ', '.join(best_hand) if best_hand else '未知'
-                    gold_win = room.pot * room.rate
                     await self.send_text(
                         f"{_mention_next(room)} 本局胜者：{winner.username}\n"
                         f"手牌：{_pretty_cards(best_hand)}\n"
                         f"牌型：{hand_name}\n"
-                        f"获得底池 {room.pot} 筹码（返还 {gold_win} 金币）"
+                        f"获得底池 {pot_won} 筹码"
                     )
-                    userCore.update_coins_to_user(str(winner.user_id), gold_win)
                 else:
                     await self.send_text(f"{_mention_next(room)} 无人获胜。")
                 # 补充筹码
@@ -352,7 +352,14 @@ class NextRoundCommand(BaseCommand):
                 for p in room.players:
                     if p.chips < room.initial_chips:
                         need = room.initial_chips - p.chips
-                        user = userCore.get_user_info(str(p.user_id))
+                        refill_person_id = person_api.get_person_id(platform, str(p.user_id))
+                        if not refill_person_id:
+                            refill_lines.append(f"[系统] 玩家 {p.username} 账户未找到，无法补充筹码。当前筹码：{p.chips}")
+                            continue
+                        user = userCore.get_user_info(refill_person_id)
+                        if not user:
+                            refill_lines.append(f"[系统] 玩家 {p.username} 账户数据缺失，无法补充筹码。当前筹码：{p.chips}")
+                            continue
                         gold = user.coins
                         if gold <= 0:
                             refill_lines.append(f"[系统] 玩家 {p.username} 金币不足，无法补充筹码。当前筹码：{p.chips}")
@@ -360,7 +367,7 @@ class NextRoundCommand(BaseCommand):
                         rate = room.rate
                         real_add = min(need, gold // rate)
                         if real_add > 0:
-                            userCore.update_coins_to_user(str(p.user_id), -real_add * rate)
+                            userCore.update_coins_to_user(refill_person_id, -real_add * rate)
                             p.chips += real_add
                             refill_lines.append(f"[系统] 玩家 {p.username} 补充筹码 {real_add}（消耗 {real_add * rate} 金币），当前筹码：{p.chips}")
                         else:
@@ -490,11 +497,10 @@ class FoldCommand(BaseCommand):
             return False, "阶段错误", False
         TexasHoldemCore.fold(room, int(user_id))
         message_lines = [f"{_mention_next(room)} \n{player.username} 已弃牌。"]
+        pot_snapshot = room.pot
         winner = TexasHoldemCore._check_single_player_win(room)
         if winner:
-            gold_win = room.pot * room.rate
-            userCore.update_coins_to_user(str(winner.user_id), gold_win)
-            message_lines.append(f"仅剩 {winner.username}，直接赢得底池 {room.pot}（返还 {gold_win} 金币）。")
+            message_lines.append(f"仅剩 {winner.username}，直接赢得底池 {pot_snapshot} 筹码。")
         else:
             TexasHoldemCore.move_to_next_player(room)
         next_player = room.players[room.current_player_index] if room.current_player_index is not None else None
@@ -648,3 +654,12 @@ class AllInCommand(BaseCommand):
             lines.append(settle_tip)
         await self.send_text("\n".join(lines))
         return True, f"{player.username} 全下 {allin_amount}", True
+
+# 检查是否有空房间，如果有就删除，每三十分钟执行一次
+from ..core import timeCore
+@timeCore.schedule_interval(minutes=30)
+def cleanup_empty_rooms():
+    empty_rooms = [room_id for room_id, room in rooms.items() if len(room.players) == 0]
+    for room_id in empty_rooms:
+        del rooms[room_id]
+        logCore.log_write(f"已删除空房间 {room_id}。")

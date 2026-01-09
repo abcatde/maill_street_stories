@@ -450,14 +450,16 @@ def settle_game(room: Room):
     if not best_players:
         return None
     # 平分底池给并列胜者
-    split = room.pot // len(best_players)
-    remainder = room.pot % len(best_players)
+    total_pot = room.pot
+    split = total_pot // len(best_players)
+    remainder = total_pot % len(best_players)
     for idx, (player, _) in enumerate(best_players):
         gain = split + (1 if idx < remainder else 0)
         player.chips += gain
+    room.pot = 0
     # 返回第一个胜者的信息作为显示
     show_player, show_hand = best_players[0]
-    return show_player, show_hand, hand_name(best)
+    return show_player, show_hand, hand_name(best), total_pot
 
 # 更新筹码
 def update_chips(player: Player, amount: int):
