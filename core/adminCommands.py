@@ -5,6 +5,7 @@ adminCommands.py管理员命令类
 
 
 
+from typing import Optional, Tuple
 from src.plugin_system.base.base_command import BaseCommand
 from ..core import logCore
 
@@ -18,13 +19,13 @@ class RedeemCode:
 #兑换码列表全局变量
 redeem_code_list = {}
 
-# 管理员帮助页面，需要验证密钥
+# 管理员帮助页面
 class AdminHelpCommand(BaseCommand):
     command_name = "Admin_Help"
     command_description = "管理员帮助"
-    command_pattern = r"^.admin_help (?P<adminPassworld>\d+)$"
+    command_pattern = r"^.admin help (?P<adminPassworld>\d+)$"
     
-    async def execute(self) -> tuple[bool, str, bool]:
+    async def execute(self) -> Tuple[bool, Optional[str], bool]:
         """处理管理员帮助命令"""
 
         # 限定只能在私聊中进行
@@ -50,11 +51,11 @@ class AdminHelpCommand(BaseCommand):
         return True, "管理员帮助显示成功", False
 
 # 处理保存数据的管理员命令
-class SaveStockDataCommand(BaseCommand):
+class SaveDataCommand(BaseCommand):
     command_name = "Save_data"
     command_description = "保存数据"
-    command_pattern = r"^.admin_save_data (?P<adminPassworld>\d+)$"
-    async def execute(self) -> tuple[bool, str, bool]:
+    command_pattern = r"^.admin save (?P<adminPassworld>\d+)$"
+    async def execute(self) -> Tuple[bool, Optional[str], bool]:
         """处理保存数据的管理员命令"""
        # 限定只能在私聊中进行
         group_info = getattr(self.message.message_info, 'group_info', None)
@@ -82,9 +83,9 @@ class SaveStockDataCommand(BaseCommand):
 class GenerateRedeemCodeCommand(BaseCommand):
     command_name = "Generate_Redeem_Code"
     command_description = "生成兑换码"
-    command_pattern = r"^.admin_generate_redeem_code (?P<adminPassworld>\d+) (?P<amount>\d+) (?P<uses>\d+)$"
+    command_pattern = r"^.admin 生成兑换码 (?P<adminPassworld>\d+) (?P<amount>\d+) (?P<uses>\d+)$"
     
-    async def execute(self) -> tuple[bool, str, bool]:
+    async def execute(self) -> Tuple[bool, Optional[str], bool]:
         """处理生成兑换码的管理员命令"""
         # 限定只能在私聊中进行
         group_info = getattr(self.message.message_info, 'group_info', None)
@@ -126,7 +127,7 @@ class RedeemCodeCommand(BaseCommand):
     command_description = "使用兑换码兑换金币"
     command_pattern = r"^.兑换码 (?P<code>[A-Z0-9]{10})$"
     
-    async def execute(self) -> tuple[bool, str, bool]:
+    async def execute(self) -> Tuple[bool, Optional[str], bool]:
         """处理使用兑换码的命令"""
         #获取兑换码
         code = self.matched_groups.get("code", "")
