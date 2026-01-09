@@ -1,7 +1,7 @@
 from encodings.punycode import T
 from typing import List, Tuple, Type
 
-import adminCommands
+from .core import adminCommands
 from src.plugin_system import BasePlugin, register_plugin, ComponentInfo
 from src.plugin_system.base.config_types import ConfigField
 from .core import userCommands
