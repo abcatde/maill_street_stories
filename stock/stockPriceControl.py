@@ -158,7 +158,7 @@ def calculate_new_price(stock: stock_data.Stock) -> int:
     
     new_price = stock.stock_price + price_change
     
-    # 确保价格不低于基准价格的10%（防止崩盘）
+    # 确保价格不低于基准价格的10%
     min_price = int(stock.stock_base_price * 0.1)
     new_price = max(min_price, new_price)
     
@@ -202,3 +202,80 @@ def adjust_stock_weight_on_trade(stock_id: str, quantity: int, is_buy: bool):
         stock_info['price_fluctuation_reserve'] = current_reserve - weight_change
     
     logCore.log_write(f'股票 {stock_id} 交易调整: {"买入" if is_buy else "卖出"} {quantity}股, 储备权重变化: {weight_change if is_buy else -weight_change:.4f}')
+
+def schedule_next_market_event():
+    """安排下一次市场事件，采用1-6小时的随机延迟"""
+    scheduler = timeCore.TaskScheduler._global_instance
+    if scheduler is None:
+        logCore.log_write('任务调度器未就绪，无法安排市场事件', logCore.LogLevel.WARNING)
+        return
+
+    delay_hours = random.randint(1, 6)
+    scheduler.add_once_task(simulate_market_event, delay=delay_hours * 3600)
+    logCore.log_write(f'已安排下一次市场事件，{delay_hours}小时后触发', logCore.LogLevel.INFO)
+
+
+@timeCore.TaskScheduler.once_task(delay=0)
+def bootstrap_market_event_scheduler():
+    """在插件启动时注册第一次市场事件"""
+    schedule_next_market_event()
+
+
+# 价格剧烈波动，模拟巨幅行情，事件间隔每次运行后重新随机（1-6小时），股票价格随机波动
+def simulate_market_event():
+    """模拟市场事件，导致股票价格剧烈波动"""
+    try:
+        if not stock_data.stock_data:
+            logCore.log_write('股票数据为空，跳过市场事件模拟', logCore.LogLevel.WARNING)
+            return
+        
+        logCore.log_write('市场事件触发，开始模拟股票价格剧烈波动...', logCore.LogLevel.INFO)
+        affected_count = 0
+        
+        for stock_id, stock_info in stock_data.stock_data.items():
+            try:
+                # 构造 Stock 对象
+                stock = stock_data.Stock(
+                    stock_id=stock_info['stock_id'],
+                    stock_name=stock_info['stock_name'],
+                    stock_price=stock_info['stock_price'],
+                    stock_type=stock_info['stock_type'],
+                    stock_owner=stock_info['stock_owner'],
+                    stock_base_price=stock_info['stock_base_price'],
+                    price_fluctuation_positive=stock_info.get('price_fluctuation_positive', 0.05),
+                    price_fluctuation_negative=stock_info.get('price_fluctuation_negative', 0.05),
+                    price_fluctuation_reserve=stock_info.get('price_fluctuation_reserve', 0.00),
+                    price_fluctuation_max=stock_info.get('price_fluctuation_max', 0.20),
+                    price_history=stock_info.get('price_history', [])
+                )
+                
+                old_price = stock.stock_price
+                
+                # 随机决定是上涨还是下跌
+                if random.choice([True, False]):
+                    # 上涨10% ~ 30%
+                    change_percent = random.uniform(0.10, 0.30)
+                else:
+                    # 下跌10% ~ 30%
+                    change_percent = -random.uniform(0.10, 0.30)
+                
+                new_price = stock.stock_price * (1 + change_percent)
+                
+                # 确保价格不低于基准价格的10%
+                min_price = int(stock.stock_base_price * 0.1)
+                new_price = max(min_price, new_price)
+                
+                # 更新到内存
+                stock_info['stock_price'] = int(round(new_price))
+                
+                # 记录价格历史
+                now = datetime.now()
+                stock_data.record_price_point(stock_id, int(round(new_price)), now)
+                
+                affected_count += 1
+                logCore.log_write(f'股票 {stock_id} {stock.stock_name}: {int(old_price)}$ → {int(round(new_price))}$ (市场事件波动)')
+            except Exception as e:
+                logCore.log_write(f'市场波动 {stock_id} 价格失败: {str(e)}', logCore.LogLevel.ERROR)
+    finally:
+        # 无论本次是否有数据，都安排下一次事件，避免事件链中断
+        schedule_next_market_event()
