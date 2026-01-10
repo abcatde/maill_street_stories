@@ -656,6 +656,9 @@ class FoldCommand(BaseCommand):
             message_lines = [f"{_mention_next(room)} \n{player.username} 已弃牌。"]
             hand_line = f"胜者手牌：{_pretty_cards(winner.hand)}" if winner.hand else "胜者手牌：未发牌"
             message_lines.append(f"仅剩 {winner.username}，直接赢得底池 {pot_snapshot} 筹码。\n{hand_line}")
+            refill_lines = await _refill_chips(room, platform)
+            if refill_lines:
+                message_lines.extend(refill_lines)
             TexasHoldemCore.reset_hand_state(room)
             message_lines.append("牌局已重置，使用 .开局 可开始下一手。")
         else:
